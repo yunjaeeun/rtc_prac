@@ -1,5 +1,6 @@
 package moja.back.controller;
 
+import moja.back.dto.RoomRequest;
 import moja.back.entity.Room;
 import moja.back.repo.RoomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,9 +18,9 @@ public class RoomController {
         this.roomRepository = roomRepository;
     }
 
-    @PostMapping
-    public Room createRoom(@RequestParam String name) {
-        return roomRepository.createRoom(name);
+    @PostMapping(consumes = "application/json", produces = "application/json")
+    public Room createRoom(@RequestBody RoomRequest roomRequest) {
+        return roomRepository.createRoom(roomRequest.getName());
     }
 
     @GetMapping

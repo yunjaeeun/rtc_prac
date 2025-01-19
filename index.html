@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+
+        // Create a game room
+        async function createRoom() {
+            const roomName = document.getElementById("roomName").value;
+
+            if (!roomName) {
+                alert("Please enter a room name.");
+                return;
+            }
+
+            const requestBody = { name: roomName };
+
+            try {
+                const response = await fetch("http://localhost:8080/rooms", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const room = await response.json();
+                alert(`Room created: ${room.name} (ID: ${room.roomId})`);
+                document.getElementById("roomName").value = "";
+                getRoomList();
+            } catch (error) {
+                console.error("Error creating room:", error);
+            }
+        }
+
+        // Get the list of game rooms
+        async function getRoomList() {
+            try {
+                const response = await fetch("http://localhost:8080/rooms", {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const rooms = await response.json();
+                const roomList = document.getElementById("roomList");
+                roomList.innerHTML = "";
+
+                rooms.forEach((room) => {
+                    const listItem = document.createElement("li");
+                    listItem.textContent = `Room: ${room.name} (ID: ${room.roomId})`;
+                    roomList.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error("Error fetching room list:", error);
+            }
+        }
+
+        // Connect to a WebSocket room
+        function connectToRoom() {
+            const roomId = document.getElementById("roomId").value;
+            const username = document.getElementById("username").value;
+
+            if (!roomId || !username) {
+                alert("Room ID and username are required!");
+                return;
+            }
+
+            const socket = new SockJS("http://localhost:8080/ws");
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, () => {
+                alert("Connected to WebSocket!");
+
+                // Subscribe to the room's topic
+                stompClient.subscribe(`/topic/${roomId}`, (message) => {
+                    displayMessage(message.body);
+                });
+
+                // Send a join message
+                stompClient.send("/app/joinRoom", {}, username);
+            });
+        }
+
+        // Send a message to the room
+        function sendMessage() {
+            const roomId = document.getElementById("roomId").value;
+            const messageInput = document.getElementById("messageInput").value;
+
+            if (!roomId || !messageInput) {
+                alert("Room ID and message are required!");
+                return;
+            }
+
+            stompClient.send(`/app/sendMessage`, {}, messageInput);
+            displayMessage(`You: ${messageInput}`);
+        }
+
+        // Display messages
+        function displayMessage(message) {
+            const messages = document.getElementById("messages");
+            const listItem = document.createElement("li");
+            listItem.textContent = message;
+            messages.appendChild(listItem);
+        }
+    </script>
+</head>
+<body>
+    <h1>Room Management</h1>
+
+    <!-- Room Creation Section -->
+    <section>
+        <h2>Create a Room</h2>
+        <input type="text" id="roomName" placeholder="Enter room name">
+        <button onclick="createRoom()">Create Room</button>
+    </section>
+
+    <!-- Room List Section -->
+    <section>
+        <h2>Room List</h2>
+        <button onclick="getRoomList()">Refresh Room List</button>
+        <ul id="roomList"></ul>
+    </section>
+
+    <!-- Join Room Section -->
+    <section>
+        <h2>Join a Room</h2>
+        <input type="text" id="roomId" placeholder="Enter Room ID">
+        <input type="text" id="username" placeholder="Enter your username">
+        <button onclick="connectToRoom()">Join Room</button>
+    </section>
+
+    <!-- Send Message Section -->
+    <section>
+        <h2>Send a Message</h2>
+        <textarea id="messageInput" placeholder="Enter your message"></textarea>
+        <button onclick="sendMessage()">Send Message</button>
+    </section>
+
+    <!-- Message Display Section -->
+    <section>
+        <h2>Messages</h2>
+        <ul id="messages"></ul>
+    </section>
+</body>
+</html>
