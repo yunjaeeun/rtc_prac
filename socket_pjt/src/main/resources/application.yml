@@ -1,0 +1,25 @@
+server:
+  port: 7002
+
+spring:
+  application:
+    name: socket_pjt
+  datasource:
+    url: jdbc:mysql://localhost:3307/Spring_Chatting
+    username: root
+    password: mariadb
+    driver-class-name: com.mysql.jdbc.Driver
+  jpa:
+    show-sql: true
+
+token:
+  secret-key: "SECRET"
+  refresh-secret-key: "REFRESH_SECRET"
+  token-time: 300
+  refresh-token-time: 300
+
+springdoc:
+  swagger-ui:
+    csrf:
+      enabled: true
+      operations-sorter: method
