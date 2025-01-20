@@ -5,9 +5,9 @@ spring:
   application:
     name: socket_pjt
   datasource:
-    url: jdbc:mysql://localhost:3307/Spring_Chatting
+    url: jdbc:mysql://localhost:3306/Spring_Chatting
     username: root
-    password: mariadb
+    password: ssafy12!
     driver-class-name: com.mysql.jdbc.Driver
   jpa:
     show-sql: true
