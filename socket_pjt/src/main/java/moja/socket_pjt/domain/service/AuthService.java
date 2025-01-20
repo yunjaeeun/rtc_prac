@@ -12,6 +12,7 @@ import moja.socket_pjt.domain.repository.UserRepository;
 import moja.socket_pjt.domain.repository.entity.User;
 import moja.socket_pjt.domain.repository.entity.UserCredentials;
 import moja.socket_pjt.security.Hasher;
+import moja.socket_pjt.security.JWTProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,20 +35,20 @@ public class AuthService {
             log.error("USER_ALREADY_EXISTS : {}", request.name());
             throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
         }
-         try {
-             User newUser = this.newUser(request.name());
-             UserCredentials newCredentials = this.newUserCredentials(request.password(), newUser);
-             newUser.setCredentials(newCredentials);
+        try {
+            User newUser = this.newUser(request.name());
+            UserCredentials newCredentials = this.newUserCredentials(request.password(), newUser);
+            newUser.setCredentials(newCredentials);
 
-             User savedUser = this.userRepository.save(newUser);
+            User savedUser = this.userRepository.save(newUser);
 
-             if (savedUser == null) {
+            if (savedUser == null) {
                 throw new CustomException(ErrorCode.USER_SAVED_FAILED);
-             }
+            }
 
-         } catch (Exception e) {
-             throw new CustomException(ErrorCode.USER_SAVED_FAILED);
-         }
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.USER_SAVED_FAILED);
+        }
 
         return new CreateUserResponse(request.name());
     }
@@ -64,13 +65,21 @@ public class AuthService {
             String hashedValue = hasher.getHashingValue(request.password());
 
             if (!u.getCredentials().getHashedPassword().equals(hashedValue)) {
-
+                throw new CustomException(ErrorCode.MISMATCH_PASSWORD);
             }
-        })
 
+            return hashedValue;
+        }).orElseThrow(() -> {
+            throw new CustomException(ErrorCode.USER_NOT_EXISTS);
+        });
+
+        String token = JWTProvider.createRefreshToken(request.name());
         return new LoginResponse(ErrorCode.SUCCESS, "Token");
     }
 
+    public String getUserFromToken(String token) {
+        return JWTProvider.getUserFromToken(token);
+    }
 
 
     private User newUser(String name) {
