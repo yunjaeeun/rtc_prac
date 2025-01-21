@@ -13,6 +13,7 @@ import moja.socket_pjt.common.exception.CustomException;
 import moja.socket_pjt.common.exception.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.Date;
 
@@ -23,7 +24,6 @@ public class JWTProvider {
     private static String refreshSecretKey;
     private static long tokenTimeForMinute;
     private static long refreshTokenTimeForMinute;
-
 
     @Value("${token.secret-key}")
     public void setSecretKey(String secretKey) {
@@ -40,17 +40,16 @@ public class JWTProvider {
         JWTProvider.tokenTimeForMinute = tokenTime;
     }
 
-    @Value("${token.secret-refresh-token-time}")
+    @Value("${token.refresh-token-time}")
     public void setRefreshTokenTime(long refreshTokenTime) {
-        JWTProvider.refreshTokenTimeForMinute = refreshTokenTime;
+        JWTProvider.tokenTimeForMinute = refreshTokenTime;
     }
 
     public static String createToken(String name) {
         return JWT.create()
                 .withSubject(name)
                 .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() +
-                        tokenTimeForMinute * Constants.ON_MINUTE_TO_MILLIS))
+                .withExpiresAt(new Date(System.currentTimeMillis() + tokenTimeForMinute * Constants.ON_MINUTE_TO_MILLIS))
                 .sign(Algorithm.HMAC256(secretKey));
     }
 
@@ -58,15 +57,14 @@ public class JWTProvider {
         return JWT.create()
                 .withSubject(name)
                 .withIssuedAt(new Date())
-                .withExpiresAt(new Date(System.currentTimeMillis() +
-                        tokenTimeForMinute * Constants.ON_MINUTE_TO_MILLIS))
+                .withExpiresAt(new Date(System.currentTimeMillis() + tokenTimeForMinute * Constants.ON_MINUTE_TO_MILLIS))
                 .sign(Algorithm.HMAC256(refreshSecretKey));
     }
 
-    public static DecodedJWT checkAccessTokenForRefresh(String token) {
+    public static DecodedJWT checkTokenForRefresh(String token) {
         try {
-            DecodedJWT decodedJWT = JWT.require(Algorithm.HMAC256(token)).build().verify(token);
-            log.error("token must be expired : {}", decodedJWT.getSubject());
+            DecodedJWT decoded = JWT.require(Algorithm.HMAC256(secretKey)).build().verify(token);
+            log.error("token must be expired : {}", decoded.getSubject());
             throw new CustomException(ErrorCode.ACCESS_TOKEN_IS_NOT_EXPIRED);
         } catch (AlgorithmMismatchException | SignatureVerificationException | InvalidClaimException e) {
             throw new CustomException(ErrorCode.TOKEN_IS_INVALID);
@@ -75,10 +73,11 @@ public class JWTProvider {
         }
     }
 
-    public static DecodedJWT decodedAccessToken(String token) {
+    public static DecodedJWT decodeAccessToken(String token) {
         return decodeTokenAfterVerify(token, secretKey);
     }
-    public static DecodedJWT decodedRefreshToken(String token) {
+
+    public static DecodedJWT decodeRefreshToken(String token) {
         return decodeTokenAfterVerify(token, refreshSecretKey);
     }
 
@@ -87,7 +86,7 @@ public class JWTProvider {
             return JWT.require(Algorithm.HMAC256(key)).build().verify(token);
         } catch (AlgorithmMismatchException | SignatureVerificationException | InvalidClaimException e) {
             throw new CustomException(ErrorCode.TOKEN_IS_INVALID);
-        } catch (TokenExpiredException e) {
+        }catch (TokenExpiredException e) {
             throw new CustomException(ErrorCode.TOKEN_IS_EXPIRED);
         }
     }
@@ -96,8 +95,16 @@ public class JWTProvider {
         return JWT.decode(token);
     }
 
+    public static String extractToken(String header) {
+        if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }else {
+            throw new IllegalArgumentException("Invalid Auth Header");
+        }
+    }
+
     public static String getUserFromToken(String token) {
-        DecodedJWT jwt= decodedJWT(token);
+        DecodedJWT jwt = decodedJWT(token);
         return jwt.getSubject();
     }
 
